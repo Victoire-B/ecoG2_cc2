@@ -34,7 +34,7 @@ fn : nouvelle variable qui recoit une liste de  fichier, recoit les R1 trié par
 fnFs <- sort(list.files(path, pattern="_R1.fastq"))
 fnRs <- sort(list.files(path, pattern="_R2.fastq"))
 # Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
-sampleNames <- sapply(strsplit(fnFs, "_"), `[`, 1)
+sample.names <- sapply(strsplit(fnFs, "_"), `[`, 2:3)
 # Specify the full path to the fnFs and fnRs
 fnFs <- file.path(path, fnFs)
 fnRs <- file.path(path, fnRs)
@@ -46,21 +46,51 @@ fnRs[1:11]
 
 On cherche les profils qualité
 
-Scrore de qualité pour les premiers read
+Scrore de qualité pour les premiers reads
 fnFs
 ```{r}
 plotQualityProfile(fnFs[1:3])
 ```
-Des reverses 
+Des reverses (= les reads 2)
 ```{r}
 plotQualityProfile(fnRs[1:2])
 ```
+Pour les forwards, on doit couper à 210 nucléotides pour les reverse , on doit couper 150 nucléotides
 
-Définir les noms de fichiers pour les fichiers fastq.gz filtrés
+### Définir les noms de fichiers pour les fichiers fastq.gz filtrés
+```{r}
+# Place filtered files in filtered/ subdirectory
+filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
+filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
+names(filtFs) <- sample.names
+names(filtRs) <- sample.names
+sample.names
+```
+# On commence vraiment à filtrer
+
+```{r}
+out <- filterAndTrim(fnFs[[1]], filtFs[[1]],
+              truncLen=c(10,150),
+              maxN=0, 
+              maxEE=c(2,2), 
+              truncQ=2, 
+              rm.phix=TRUE,
+              compress=TRUE, 
+              multithread=TRUE)
+```
+```{r}
+out2 <- filterAndTrim(fnFs[[2]], filtFs[[2]], fnRs[[2]], filtRs[[2]],
+              truncLen=c(210,150),
+              maxN=0, 
+              maxEE=c(2,2), 
+              truncQ=2, 
+              rm.phix=TRUE,
+              compress=TRUE, 
+              multithread=TRUE)
+```
 
 
-
-
+On a assigné à une variable out les reads filtrés
 
 
 
