@@ -12,12 +12,21 @@ output:
 ```{r}
 set.seed(100)
 ```
+```{r}
+library(dada2)
+```
+
 
 Lister les séquences du 10 sept 14 et du 11 mars 15 et attribuer une variable
 ```{r}
 path <- "~/ecog2_cc2/seqreunies" # CHANGE ME to the directory containing the fastq files after unzipping.
 list.files(path)
 ```
+On voit les fichiers fastq
+
+On crée des variables pour l'analyse du plot, les Read 1 vont dans la variable fnFs et les Read2 dans la variable fnRs
+
+- la foction sample.names : extrait les noms des échantillons, tout en supposant que les noms de fichiers ont un format : NOM DE L'ÉCHANTILLON_XXX.fastq
 
 
 ## Filter and trim
@@ -29,19 +38,17 @@ R : reverse
 Affiche des scores de qualité 
 
 fn : nouvelle variable qui recoit une liste de  fichier, recoit les R1 trié par ordre alphabétique pour Rs : la même chose pour les R2.
+
+On cherche les profils qualité
+Scrore de qualité pour les premiers reads
+fnFs
 ```{r}
 # Sort ensures forward/reverse reads are in same order
-fnFs <- sort(list.files(path, pattern="_R1.fastq"))
-fnRs <- sort(list.files(path, pattern="_R2.fastq"))
+fnFs <- sort(list.files(path, pattern="_R1.fastq", full.names = TRUE))
+fnRs <- sort(list.files(path, pattern="_R2.fastq", full.names = TRUE))
 # Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
-sample.names <- sapply(strsplit(fnFs, "_"), `[`, 2:3)
-# Specify the full path to the fnFs and fnRs
-fnFs <- file.path(path, fnFs)
-fnRs <- file.path(path, fnRs)
-fnFs[1:11]
-```
-```{r}
-fnRs[1:11]
+sample.names <- sapply(strsplit(fnFs, "R"), `[`, 1)
+
 ```
 
 On cherche les profils qualité
@@ -66,32 +73,26 @@ names(filtFs) <- sample.names
 names(filtRs) <- sample.names
 sample.names
 ```
+
+
+```{r}
+filtFs
+```
+```{r}
+filtRs
+```
+
 # On commence vraiment à filtrer
 
 ```{r}
-out <- filterAndTrim(fnFs[[1]], filtFs[[1]],
-              truncLen=c(10,150),
-              maxN=0, 
-              maxEE=c(2,2), 
-              truncQ=2, 
-              rm.phix=TRUE,
-              compress=TRUE, 
-              multithread=TRUE)
-```
-```{r}
-out2 <- filterAndTrim(fnFs[[2]], filtFs[[2]], fnRs[[2]], filtRs[[2]],
-              truncLen=c(210,150),
-              maxN=0, 
-              maxEE=c(2,2), 
-              truncQ=2, 
-              rm.phix=TRUE,
-              compress=TRUE, 
-              multithread=TRUE)
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(210,150), trimLeft=c(21,21),
+              maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
+              compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
 ```
 
 
 On a assigné à une variable out les reads filtrés
-
+On a tronqué la fin des R1 et R2 respectivement à 210bp et 150bp. On a aussi tronqué le début des R1 à 21bp à cause des primers. On laisse le début des R2. 
 
 
 

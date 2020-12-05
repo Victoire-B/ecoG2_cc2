@@ -1,0 +1,219 @@
+---
+title: "CC2 : Dada2"
+output: 
+  github_document:
+    toc: true
+    toc depth: 4
+---
+
+# Methods 
+## Amplicon bioinformatics: from raw reads 
+
+```{r}
+set.seed(100)
+```
+
+```{r}
+library(dada2)
+```
+Lister les séquences du 10 sept 14 et du 11 mars 15 et attribuer une variable
+```{r}
+path <- "~/ecog2_cc2/Seqreunies2" # CHANGE ME to the directory containing the fastq files after unzipping.
+list.files(path)
+```
+On voit les fichiers fastq
+
+On crée des variables pour l'analyse du plot, les Read 1 vont dans la variable fnFs et les Read2 dans la variable fnRs
+
+- la foction sample.names : extrait les noms des échantillons, tout en supposant que les noms de fichiers ont un format : NOM DE L'ÉCHANTILLON_XXX.fastq
+
+## Filter and trim
+
+On filtre les séquences de basses qualités et on les enlève
+Lecture des dossiers fast, liste chaines 
+F : forward = read1
+R : reverse = read2
+Affiche des scores de qualité 
+
+fn : nouvelle variable qui recoit une liste de  fichier, recoit les R1 trié par ordre alphabétique pour Rs : la même chose pour les R2.
+
+On cherche les profils qualité
+Scrore de qualité pour les premiers reads
+fnFs
+```{r}
+# Forward and reverse fastq filenames have format: SAMPLENAME_R1_1.fastq and SAMPLENAME_R2_1.fastq
+fnFs <- sort(list.files(path, pattern="_R1.fastq", full.names = TRUE))
+fnRs <- sort(list.files(path, pattern="_R2.fastq", full.names = TRUE))
+# Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
+sample.names <- sapply(strsplit(basename(fnFs), "R"), `[`, 1)
+```
+
+```{r}
+plotQualityProfile(fnFs[1:2])
+```
+
+Des reverses (= les reads 2)
+```{r}
+plotQualityProfile(fnRs[1:2])
+```
+Pour les forwards, on doit couper à 210 nucléotides pour les reverse , on doit couper 150 nucléotides
+
+### Définir les noms de fichiers pour les fichiers fastq.gz filtrés
+```{r}
+# Place filtered files in filtered/ subdirectory
+filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
+filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
+names(filtFs) <- sample.names
+names(filtRs) <- sample.names
+```
+Les paramètres de filtrage standards : 
+- truncLen=c : prend les deux (forward et reverse) et on coupe au niveau respectif de 24à pb et 200pb environ au niveua ou le score quality est en dessous de Q30
+-trimLeft : coupe les 21 premiers nucléotides, ce sont les primers
+-maxN=0 (Dada2 ne nécessite pas de Ns), 
+-truncQ=2 : on va tronquer pour les reads 1 a 240 et 160 pour les reads 2
+-rm.phix=TRUE 
+-maxEE=2  -> le nombre maximum d'"erreurs attendues" autorisées dans une lecture, ce qui est un meilleur filtre que la simple moyenne des scores de qualité
+```{r}
+out<-filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,200),trimLeft=c(21),
+              maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
+              compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
+```
+```{r}
+head(out)
+```
+
+## Apprentissage des erreurs 
+
+Il est possible d'avoir des erreurs, avec Dada2 on inspecte les séquences. 
+On utilise un modèle d'erreur paramétrique err pour les R1 et R2 
+
+Le But : Le modèle d'erreur de DADA2  permet identifier les positions avec une forte probabilité d'erreur et par la suite changer avec la base la plus probable. Cela veut dire celle quiest présente dans la séquence la plus abondante
+
+On crée les variables : 
+-errF : recoit le modèle d'erreur paramétrique par la fonction LearnErrors pour les R1 et R2 filtrés 
+
+```{r}
+errF <- learnErrors(filtFs, multithread=TRUE)
+```
+
+```{r}
+errR <- learnErrors(filtRs, multithread=TRUE)
+```
+
+## Visualisation des modèles d'ereur du forward
+
+En abscisse on a la probabilité des mutations et en ordonnée le q score
+Q30 : la probabilité que la base trouver sois la bonne 
+La fonction plotError permet de visualiser les erreurs. 
+
+```{r}
+plotErrors(errF, nominalQ=TRUE)
+```
+
+```{r}
+plotErrors(errR, nominalQ=TRUE)
+```
+Chaque transition (mutation) possible (A→C, A→G, ...) le taux d'erreur sont indiqués. 
+-points : les taux d'erreur observés pour chaque score de qualité du consensus. 
+-ligne noire : taux d'erreur estimés après convergence de l'algorithme de la machine d'apprentissage. 
+-ligne rouge : taux d'erreur attendus selon la définition nominale du Q-score.
+Les fenêtres montrent les replacements d'une base à une autre.
+Quand on remplace les A avec les T et les T avec les A, la courbe se rapproche du taux d'erreur attendus selon la définition nominale du Q-score.
+
+
+## Exemple d'interférences
+
+```{r}
+dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
+```
+
+```{r}
+dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
+```
+
+Cette fonction permet d'enlever le bruit des paires de forward et des reverse 
+```{r}
+mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
+# Inspect the merger data.frame from the first sample
+head(mergers[[1]])
+```
+```{r}
+seqtab <- makeSequenceTable(mergers)
+dim(seqtab)
+```
+
+# Inspection des longueurs de séquences
+```{r}
+# Inspect distribution of sequence lengths
+table(nchar(getSequences(seqtab)))
+```
+# Chimères
+## Enlever les chimères par méthode consensus 
+
+```{r}
+seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
+dim(seqtab.nochim)
+```
+## Faire le ratio
+
+Voir le nombre de chimères, c'est le pourcentage de chimères dans notre échantillon 
+```{r}
+1- sum(seqtab.nochim)/sum(seqtab)
+```
+
+# Construction d'une table 
+
+```{r}
+getN <- function(x) sum(getUniques(x))
+track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(mergers, getN), rowSums(seqtab.nochim))
+# If processing a single sample, remove the sapply calls: e.g. replace sapply(dadaFs, getN) with getN(dadaFs)
+colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "nonchim")
+rownames(track) <- sample.names
+head(track)
+```
+
+#Assignation taxonomique
+
+```{r}
+taxa <- assignTaxonomy(seqtab.nochim, "~/silva_nr99_v138_train_set.fa.gz", multithread=TRUE)
+```
+
+## Assignation taxonomique n°2 Silva species assignement
+
+Il va comparer nos séquences à la base de données Silva
+et on assigne une taxonomie à nos données de la Rade de Brest pour pouvoir les étudier.
+```{r}
+taxa <- addSpecies(taxa, "~/silva_species_assignment_v138.fa.gz")
+```
+```{r}
+taxa.print <- taxa # Removing sequence rownames for display only
+rownames(taxa.print) <- NULL
+head(taxa.print)
+```
+
+## Evaluer la précision de l'assignation taxonomique 
+
+# Conclusion
+
+```{r}
+save.image(file="02_Dada2_tutorial_FinalEnv")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
