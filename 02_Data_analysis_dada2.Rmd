@@ -18,7 +18,7 @@ library(dada2)
 ```
 Lister les séquences du 10 sept 14 et du 11 mars 15 et attribuer une variable
 ```{r}
-path <- "~/ecog2_cc2/Seqreunies2" # CHANGE ME to the directory containing the fastq files after unzipping.
+path <- "~/EcoG2-CC2/Seqreunies2" # CHANGE ME to the directory containing the fastq files after unzipping.
 list.files(path)
 ```
 On voit les fichiers fastq
