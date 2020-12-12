@@ -56,7 +56,7 @@ Des reverses (= les reads 2)
 ```{r}
 plotQualityProfile(fnRs[1:2])
 ```
-Pour les forwards, on doit couper à 210 nucléotides pour les reverse , on doit couper 150 nucléotides
+La fonction plot quality profil permet de voir à quel endroit on va couper les R1 et R2 pour qu'il y ait un overlap mais pour que le score de qualité ne soit pas inférieur 30% (c'est à dire le Q30). Pour les forwards, on peut couper à 240 nucléotides pour les reverse, on doit couper à 200 nucléotides. Couper à 200 nucléotides pour les R2 semble être la limite pour un bon score de qualité.
 
 ### Définir les noms de fichiers pour les fichiers fastq.gz filtrés
 ```{r}
@@ -67,14 +67,14 @@ names(filtFs) <- sample.names
 names(filtRs) <- sample.names
 ```
 Les paramètres de filtrage standards : 
-- truncLen=c : prend les deux (forward et reverse) et on coupe au niveau respectif de 24à pb et 200pb environ au niveua ou le score quality est en dessous de Q30
+- truncLen=c : prend les deux (forward et reverse) et on coupe au niveau respectif de 240 pb et 200pb environ au niveua ou le score quality est en dessous de Q30
 -trimLeft : coupe les 21 premiers nucléotides, ce sont les primers
 -maxN=0 (Dada2 ne nécessite pas de Ns), 
--truncQ=2 : on va tronquer pour les reads 1 a 240 et 160 pour les reads 2
+-truncQ=2 : on va tronquer pour les reads 1 a 240 et 200 pour les reads 2
 -rm.phix=TRUE 
 -maxEE=2  -> le nombre maximum d'"erreurs attendues" autorisées dans une lecture, ce qui est un meilleur filtre que la simple moyenne des scores de qualité
 ```{r}
-out<-filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,200),trimLeft=c(21),
+out<-filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,200),trimLeft=21,
               maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
               compress=TRUE, multithread=TRUE) # On Windows set multithread=FALSE
 ```
