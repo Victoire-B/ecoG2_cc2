@@ -1,5 +1,5 @@
 ---
-title: "CC2 : Dada2"
+title: "CC2 : Dada2  analysis"
 output: 
   github_document:
     toc: true
@@ -81,13 +81,14 @@ out<-filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,200),trimLeft=21,
 ```{r}
 head(out)
 ```
+La fonction head() afiche les premiers read in et out des séquences récupérées 
 
 ## Apprentissage des erreurs 
 
 Il est possible d'avoir des erreurs, avec Dada2 on inspecte les séquences. 
 On utilise un modèle d'erreur paramétrique err pour les R1 et R2 
 
-Le But : Le modèle d'erreur de DADA2  permet identifier les positions avec une forte probabilité d'erreur et par la suite changer avec la base la plus probable. Cela veut dire celle quiest présente dans la séquence la plus abondante
+Le modèle d'erreur de DADA2  permet identifier les positions avec une forte probabilité d'erreur et par la suite changer avec la base la plus probable. Cela veut dire celle qui est présente dans la séquence la plus abondante
 
 On crée les variables : 
 -errF : recoit le modèle d'erreur paramétrique par la fonction LearnErrors pour les R1 et R2 filtrés 
@@ -95,7 +96,7 @@ On crée les variables :
 ```{r}
 errF <- learnErrors(filtFs, multithread=TRUE)
 ```
-
+Cela nous donne le nombre de base dans le nombre de reads à partir de 3 échantillons pour connaitre le taux d'erreur pour les R1. On fait ensuite la même chose avec les R2
 ```{r}
 errR <- learnErrors(filtRs, multithread=TRUE)
 ```
@@ -118,11 +119,12 @@ Chaque transition (mutation) possible (A→C, A→G, ...) le taux d'erreur sont 
 -ligne noire : taux d'erreur estimés après convergence de l'algorithme de la machine d'apprentissage. 
 -ligne rouge : taux d'erreur attendus selon la définition nominale du Q-score.
 Les fenêtres montrent les replacements d'une base à une autre.
-Quand on remplace les A avec les T et les T avec les A, la courbe se rapproche du taux d'erreur attendus selon la définition nominale du Q-score.
+Quand on remplace les A avec les T et les T avec les A, la courbe se rapproche du taux d'erreur attendue selon la définition du Q-score.
 
 
 ## Exemple d'interférences
 
+Dans deux nouvelles variables (pour les R1 et les R2),où est appliqué la fonction dada() avec le modèle d'erreur et les reads filtrés dont on a enlevé les bases au délà d'un Q-score inférieru à 30. 
 ```{r}
 dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
 ```
@@ -132,11 +134,14 @@ dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
 ```
 
 Cette fonction permet d'enlever le bruit des paires de forward et des reverse 
+
+Pour chaque échantillon, dada2 nous donne le résultats du nombre de reads avec des séquences uniques. 
 ```{r}
 mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
 # Inspect the merger data.frame from the first sample
 head(mergers[[1]])
 ```
+On a appliqué la fonction mergePairs() qui permet d'associer les R1 et le R2 par paires de lecture sans bruit (filtrés) en éliminant les reads qui ne chevauchent pas assez (overlap) ou justement ceux qui ont une trop grande disconcordance dans ce chevauchement.
 ```{r}
 seqtab <- makeSequenceTable(mergers)
 dim(seqtab)
@@ -144,7 +149,6 @@ dim(seqtab)
 
 # Inspection des longueurs de séquences
 ```{r}
-# Inspect distribution of sequence lengths
 table(nchar(getSequences(seqtab)))
 ```
 # Chimères
@@ -156,10 +160,12 @@ dim(seqtab.nochim)
 ```
 ## Faire le ratio
 
-Voir le nombre de chimères, c'est le pourcentage de chimères dans notre échantillon 
+Voir le nombre de chimères, c'est le pourcentage de chimères dans notre échantillon
 ```{r}
 1- sum(seqtab.nochim)/sum(seqtab)
 ```
+Ic, on obtient 22% de chimères
+
 
 # Construction d'une table 
 
@@ -175,23 +181,22 @@ head(track)
 #Assignation taxonomique
 
 ```{r}
-taxa <- assignTaxonomy(seqtab.nochim, "~/silva_nr99_v138_train_set.fa.gz", multithread=TRUE)
+taxa <- assignTaxonomy(seqtab.nochim, "~/EcoG2-CC2/silva_nr99_v138_train_set.fa.gz", multithread=TRUE)
 ```
+On va comparer les séquences de nos échantillons grâce à la base de données Silva.
 
 ## Assignation taxonomique n°2 Silva species assignement
 
-Il va comparer nos séquences à la base de données Silva
-et on assigne une taxonomie à nos données de la Rade de Brest pour pouvoir les étudier.
+On va comparer nos séquences à la base de données Silvaet on assigne une taxonomie à nos données de la Rade de Brest pour pouvoir les étudier. Cette taxonomie va jusqu'à l'espèce. 
 ```{r}
-taxa <- addSpecies(taxa, "~/silva_species_assignment_v138.fa.gz")
+taxa <- addSpecies(taxa, "~/EcoG2-CC2/silva_species_assignment_v138.fa.gz")
 ```
 ```{r}
 taxa.print <- taxa # Removing sequence rownames for display only
 rownames(taxa.print) <- NULL
 head(taxa.print)
 ```
-
-## Evaluer la précision de l'assignation taxonomique 
+Après cette assignation taxonomique, nous retrouvons que des bactéries, l'assignation va en grande majorité jusqu'au genre et quelque fois l'espèces. 
 
 # Conclusion
 

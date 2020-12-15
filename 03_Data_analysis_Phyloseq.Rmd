@@ -1,0 +1,19 @@
+---
+title: "CC2 : Phyloseq analysis"
+output: 
+  github_document:
+    toc: true
+    toc depth: 4
+---
+
+```{r}
+library(ggplot2)
+library(dada2)
+library(phyloseq)
+```
+On a appellé les "library" pour lancer nos lignes de codes 
+
+# Chargement des images de dada2
+```{r}
+load("~/EcoG2-CC2/02_Dada2_tutorial_FinalEnv")
+```
