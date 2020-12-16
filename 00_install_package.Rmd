@@ -32,7 +32,7 @@ BiocManager::install(.bioc_packages)
 ```{r}
 library("knitr")
 library("BiocManager")
-.cran_packages <- c("ggplot2", "gridExtra")
+.cran_packages <- c("ggplot2", "gridExtra","lefser")
 .bioc_packages <- c("dada2", "phyloseq", "DECIPHER", "phangorn")
 .inst <- .cran_packages %in% installed.packages()
 if(any(!.inst)) {
@@ -80,3 +80,21 @@ BiocManager::install("caret")
 ```{r}
 BiocManager::install("ggnetwork")
 ```
+
+```{r}
+BiocManager::install("DESeq2")
+```
+```{r}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("lefse")
+```
+
+```{r}
+install.packages("lefse")
+```
+
+
+
+
