@@ -70,6 +70,13 @@ BiocManager::install("phyloseq")
 library(phyloseq)
 ```
 
+```{r}
+BiocManager::install("ggrepel")
+```
+```{r}
+BiocManager::install("caret")
+```
 
-
-
+```{r}
+BiocManager::install("ggnetwork")
+```

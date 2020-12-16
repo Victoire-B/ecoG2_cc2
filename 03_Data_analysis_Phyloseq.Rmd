@@ -23,10 +23,10 @@ load("~/EcoG2-CC2/02_Dada2_tutorial_FinalEnv")
 ```{r}
 samples.out <- rownames(seqtab.nochim)
 profondeur <- sapply(strsplit(samples.out, "D"), `[`, 1)
-date <- substr(profondeur,0,11)
+date <- substr(profondeur,0,1557)
 samdf <- data.frame(Profondeur=profondeur, Date=date)
-samdf$Profondeur[samdf$Date>11] <- c("Fond","Median","Surface")
-samdf$Date[samdf$Profondeur>11] <- c("10sept14","11mars15")
+samdf$Profondeur[samdf$Date>1557] <- c("Fond","Median","Surface")
+samdf$Date[samdf$Profondeur>1557] <- c("10sept14","11mars15")
 rownames(samdf) <- samples.out
 ```
 
@@ -174,7 +174,7 @@ gridExtra::grid.arrange(nrow = 1, p2tree, p3tree, p4tree)
 plot_abundance_P = function(physeq,title = "",
                           Facet = "Order", Color = "Phylum"){
   # Arbitrary subset, based on Phylum, for plotting
-  p1f = subset_taxa(physeq, Phylum %in% c("Firmicutes"))
+  p1f = subset_taxa(physeq, Phylum %in% c("Planctomycetota"))
   mphyseq = psmelt(p1f)
   mphyseq <- subset(mphyseq, Abundance > 0)
   ggplot(data = mphyseq, mapping = aes_string(x = "Profondeur",y = "Abundance",
@@ -192,21 +192,132 @@ ps3ra_P = transform_sample_counts(ps3, function(x){x / sum(x)})
 
 ```{r}
 plotBefore_P = plot_abundance_P(ps3,"")
-plotAfter_P = plot_abundance_P(ps3raP,"")
+plotAfter_P = plot_abundance_P(ps3ra_P,"")
 ```
 ```{r}
 gridExtra::grid.arrange(nrow = 1, plotBefore_P, plotAfter_P)
 ```
 ```{r}
-psOrd_P = subset_taxa(ps3ra_P, Order == "Lactobacillales")
+psOrd_P = subset_taxa(ps3ra_P, Order == "Pirellulales")
 plot_abundance_P(psOrd_P, Facet = "Genus", Color = NULL)
+```
+## Avec la date 
+
+```{r}
+plot_abundance_D = function(physeq,title = "",
+                          Facet = "Order", Color = "Phylum"){
+  # Arbitrary subset, based on Phylum, for plotting
+  p1f = subset_taxa(physeq, Phylum %in% c("Planctomycetota"))
+  mphyseq = psmelt(p1f)
+  mphyseq <- subset(mphyseq, Abundance > 0)
+  ggplot(data = mphyseq, mapping = aes_string(x = "Date",y = "Abundance",
+                              color = Color, fill = Color)) +
+    geom_violin(fill = NA) +
+    geom_point(size = 1, alpha = 0.3,
+               position = position_jitter(width = 0.3)) +
+    facet_wrap(facets = Facet) + scale_y_log10()+
+    theme(legend.position="none")
+}
+```
+```{r}
+ps3ra_D = transform_sample_counts(ps3, function(x){x / sum(x)})
+```
+
+```{r}
+plotBefore_D = plot_abundance_D(ps3,"")
+plotAfter_D = plot_abundance_D(ps3ra_D,"")
+```
+```{r}
+gridExtra::grid.arrange(nrow = 1, plotBefore_D, plotAfter_D)
+```
+```{r}
+psOrd_D = subset_taxa(ps3ra_D, Order == "Pirellulales")
+plot_abundance_D(psOrd_D, Facet = "Genus", Color = NULL)
+```
+
+# Precessing 
+
+```{r}
+qplot(sample_data(ps)$profondeur, geom = "histogram",binwidth=10) + xlab("profondeur")
+```
+
+```{r}
+sample_data(ps)$age_binned <- cut(sample_data(ps)$age,
+                          breaks = c("Fond","Median","Surface"))
+levels(sample_data(ps)$age_binned) <- list(Young100="("_Fond"]", Mid100to200="("_Median"]", Old200="("_Surface"]")
+sample_data(ps)$family_relationship=gsub(" ","",sample_data(ps)$family_relationship)
+pslog <- transform_sample_counts(ps, function(x) log(1 + x))
+out.wuf.log <- ordinate(pslog, method = "MDS", distance = "wunifrac")
+evals <- out.wuf.log$values$Eigenvalues
+plot_ordination(pslog, out.wuf.log, color = "age_binned") +
+  labs(col = "Binned Age") +
+  coord_fixed(sqrt(evals[2] / evals[1]))
 ```
 
 
 
 
+# Ordination méthode 2 
+
+```{r}
+# Transform data to proportions as appropriate for Bray-Curtis distances
+ps.prop <- transform_sample_counts(ps, function(tax_table) tax_table/sum(tax_table))
+ord.pcoa.bray <- ordinate(ps.prop, method="PCoA", distance="bray")
+```
+
+## Visualisation de l'ordination
+On colore la légende quand "when"
+
+```{r}
+plot_ordination(ps.prop, ord.pcoa.bray, color="Profondeur", shape = "Date", title="Bray PCoA")
+```
+# Bar plot
+
+```{r}
+top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
+ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+ps.top20 <- prune_taxa(top20, ps.top20)
+plot_bar(ps.top20, x="Date", fill="Genus") + facet_wrap(~Profondeur, scales="free_x")
+```
 
 
+```{r}
+top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
+ps.top20 <- transform_sample_counts(ps, function(OTU) OTU/sum(OTU))
+ps.top20 <- prune_taxa(top20, ps.top20)
+plot_bar(ps.top20, x="Date", fill="Order") + facet_wrap(~Profondeur, scales="free_x")
+```
 
+# Analyse en réseau 
+
+```{r}
+library(dada2)
+library(phyloseq)
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(ade4)
+library(ggrepel)
+library(lattice)
+library(caret)
+library(igraph)
+library(ggnetwork)
+```
+
+```{r}
+net <- make_network(ps, max.dist=0.35)
+sampledata <- data.frame(sample_data(ps))
+V(net)$date <- sampledata[names(V(net)), "Date"]
+V(net)$Profondeur <- sampledata[names(V(net)), "Profondeur"]
+
+net_graph <- ggnetwork(net)
+
+ggplot(net_graph, aes(x = x, y = y, xend = xend, yend = yend), layout = "fruchtermanreingold") +
+  geom_edges(color = "darkgray") +
+  geom_nodes(aes(color = date, shape = Profondeur),  size = 3 ) +
+  theme(axis.text = element_blank(), axis.title = element_blank(),
+        legend.key.height = unit(0.5,"line")) +
+  guides(col = guide_legend(override.aes = list(size = .5)))
+```
 
 
