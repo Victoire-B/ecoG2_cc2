@@ -37,9 +37,6 @@ Affiche des scores de qualité
 
 fn : nouvelle variable qui recoit une liste de  fichier, recoit les R1 trié par ordre alphabétique pour Rs : la même chose pour les R2.
 
-On cherche les profils qualité
-Scrore de qualité pour les premiers reads
-fnFs
 ```{r}
 # Forward and reverse fastq filenames have format: SAMPLENAME_R1_1.fastq and SAMPLENAME_R2_1.fastq
 fnFs <- sort(list.files(path, pattern="_R1.fastq", full.names = TRUE))
@@ -47,6 +44,9 @@ fnRs <- sort(list.files(path, pattern="_R2.fastq", full.names = TRUE))
 # Extract sample names, assuming filenames have format: SAMPLENAME_XXX.fastq
 sample.names <- sapply(strsplit(basename(fnFs), "R"), `[`, 1)
 ```
+On cherche les profils qualité
+Scrore de qualité pour les premiers reads
+fnFs
 
 ```{r}
 plotQualityProfile(fnFs[1:2])
@@ -67,12 +67,10 @@ names(filtFs) <- sample.names
 names(filtRs) <- sample.names
 ```
 Les paramètres de filtrage standards : 
-- truncLen=c : prend les deux (forward et reverse) et on coupe au niveau respectif de 240 pb et 200pb environ au niveua ou le score quality est en dessous de Q30
+- truncLen=c : prend les deux (forward et reverse) et on coupe au niveau respectif de 240 pb et 200pb environ au niveua ou le score quality est en dessous de Q30 avec l'argument TruncLen
 -trimLeft : coupe les 21 premiers nucléotides, ce sont les primers
 -maxN=0 (Dada2 ne nécessite pas de Ns), 
--truncQ=2 : on va tronquer pour les reads 1 a 240 et 200 pour les reads 2
--rm.phix=TRUE 
--maxEE=2  -> le nombre maximum d'"erreurs attendues" autorisées dans une lecture, ce qui est un meilleur filtre que la simple moyenne des scores de qualité
+Le nombre maximum d'"erreurs attendues" autorisées dans une lecture, ce qui est un meilleur filtre que la simple moyenne des scores de qualité
 ```{r}
 out<-filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,200),trimLeft=21,
               maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE,
@@ -104,7 +102,6 @@ errR <- learnErrors(filtRs, multithread=TRUE)
 ## Visualisation des modèles d'ereur du forward
 
 En abscisse on a la probabilité des mutations et en ordonnée le q score
-Q30 : la probabilité que la base trouver sois la bonne 
 La fonction plotError permet de visualiser les erreurs. 
 
 ```{r}
@@ -124,7 +121,7 @@ Quand on remplace les A avec les T et les T avec les A, la courbe se rapproche d
 
 ## Exemple d'interférences
 
-Dans deux nouvelles variables (pour les R1 et les R2),où est appliqué la fonction dada() avec le modèle d'erreur et les reads filtrés dont on a enlevé les bases au délà d'un Q-score inférieru à 30. 
+Dans deux nouvelles variables (pour les R1 et les R2),où est appliqué la fonction dada() avec le modèle d'erreur et les reads filtrés dont on a enlevé les bases au délà d'un Q-score inférieur à 30. 
 ```{r}
 dadaFs <- dada(filtFs, err=errF, multithread=TRUE)
 ```
@@ -134,8 +131,7 @@ dadaRs <- dada(filtRs, err=errR, multithread=TRUE)
 ```
 
 Cette fonction permet d'enlever le bruit des paires de forward et des reverse 
-
-Pour chaque échantillon, dada2 nous donne le résultats du nombre de reads avec des séquences uniques. 
+Pour chaque échantillon, dada2 nous donne le résultat du nombre de reads avec des séquences uniques. 
 ```{r}
 mergers <- mergePairs(dadaFs, filtFs, dadaRs, filtRs, verbose=TRUE)
 # Inspect the merger data.frame from the first sample
@@ -152,7 +148,8 @@ dim(seqtab)
 table(nchar(getSequences(seqtab)))
 ```
 # Chimères
-## Enlever les chimères par méthode consensus 
+
+Cette fonction permet d'enlever les chimères par méthode consensus 
 
 ```{r}
 seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
@@ -164,7 +161,7 @@ Voir le nombre de chimères, c'est le pourcentage de chimères dans notre échan
 ```{r}
 1- sum(seqtab.nochim)/sum(seqtab)
 ```
-Ic, on obtient 22% de chimères
+Ici, on obtient 22% de chimères
 
 
 # Construction d'une table 
@@ -177,6 +174,8 @@ colnames(track) <- c("input", "filtered", "denoisedF", "denoisedR", "merged", "n
 rownames(track) <- sample.names
 head(track)
 ```
+Cete étape permet d'obtenir chacun de nos échantillons, et de comparer toutes les séquences auxquelles elles appartiennent. Cela permet de voir les différentes étapes de la filtration de nos données jusqu'à l'éminination des chimères. 
+
 
 #Assignation taxonomique
 
@@ -196,9 +195,8 @@ taxa.print <- taxa # Removing sequence rownames for display only
 rownames(taxa.print) <- NULL
 head(taxa.print)
 ```
-Après cette assignation taxonomique, nous retrouvons que des bactéries, l'assignation va en grande majorité jusqu'au genre et quelque fois l'espèces. 
-
-# Conclusion
+Après cette assignation taxonomique, nous retrouvons majoritairement un grand nombre de bactéries et quelques séquences appartiennent à la branche des Archées. L'assignation va en grande majorité jusqu'au genre et quelque fois jusqu'à l'espèce. Cependant, à partir de l'ordre, des clades ont été crées pour assigner nos séquences de la rade de Brest. 
+La variable taxa.print a reçu toutes les séquences des échantillons avec une taxonomie assignée. 
 
 ```{r}
 save.image(file="02_Dada2_tutorial_FinalEnv")
