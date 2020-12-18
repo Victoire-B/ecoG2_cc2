@@ -3,7 +3,7 @@ title: "CC2 : Dada2  analysis"
 output: 
   github_document:
     toc: true
-    toc depth: 4
+    toc_depth: 4
 ---
 
 # Methods 
@@ -25,7 +25,7 @@ On voit les fichiers fastq
 
 On crée des variables pour l'analyse du plot, les Read 1 vont dans la variable fnFs et les Read2 dans la variable fnRs
 
-- la foction sample.names : extrait les noms des échantillons, tout en supposant que les noms de fichiers ont un format : NOM DE L'ÉCHANTILLON_XXX.fastq
+- la fonction sample.names : extrait les noms des échantillons, tout en supposant que les noms de fichiers ont un format : NOM DE L'ÉCHANTILLON_XXX.fastq
 
 ## Filter and trim
 
@@ -46,7 +46,7 @@ sample.names <- sapply(strsplit(basename(fnFs), "R"), `[`, 1)
 ```
 On cherche les profils qualité
 Scrore de qualité pour les premiers reads
-fnFs
+
 
 ```{r}
 plotQualityProfile(fnFs[1:2])
@@ -56,7 +56,7 @@ Des reverses (= les reads 2)
 ```{r}
 plotQualityProfile(fnRs[1:2])
 ```
-La fonction plot quality profil permet de voir à quel endroit on va couper les R1 et R2 pour qu'il y ait un overlap mais pour que le score de qualité ne soit pas inférieur 30% (c'est à dire le Q30). Pour les forwards, on peut couper à 240 nucléotides pour les reverse, on doit couper à 200 nucléotides. Couper à 200 nucléotides pour les R2 semble être la limite pour un bon score de qualité.
+La fonction plot quality profil permet de voir à quel endroit on va couper les R1 et R2 pour qu'il y ait un overlap mais pour que le score de qualité ne soit pas inférieur à Q30, cela signifie que sur 1000 bases une seule soit fausse. Pour les forwards, on peut couper à 240 nucléotides pour les reverse, on doit couper à 200 nucléotides. Couper à 200 nucléotides pour les R2 semble être la limite pour un bon score de qualité.
 
 ### Définir les noms de fichiers pour les fichiers fastq.gz filtrés
 ```{r}
@@ -69,7 +69,6 @@ names(filtRs) <- sample.names
 Les paramètres de filtrage standards : 
 - truncLen=c : prend les deux (forward et reverse) et on coupe au niveau respectif de 240 pb et 200pb environ au niveua ou le score quality est en dessous de Q30 avec l'argument TruncLen
 -trimLeft : coupe les 21 premiers nucléotides, ce sont les primers
--maxN=0 (Dada2 ne nécessite pas de Ns), 
 Le nombre maximum d'"erreurs attendues" autorisées dans une lecture, ce qui est un meilleur filtre que la simple moyenne des scores de qualité
 ```{r}
 out<-filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,200),trimLeft=21,
@@ -79,9 +78,9 @@ out<-filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=c(240,200),trimLeft=21,
 ```{r}
 head(out)
 ```
-La fonction head() afiche les premiers read in et out des séquences récupérées 
+La fonction head() afiche les premiers read in et out, donc après filtrage des séquences récupérées 
 
-## Apprentissage des erreurs 
+# Apprentissage des erreurs 
 
 Il est possible d'avoir des erreurs, avec Dada2 on inspecte les séquences. 
 On utilise un modèle d'erreur paramétrique err pour les R1 et R2 
@@ -111,7 +110,7 @@ plotErrors(errF, nominalQ=TRUE)
 ```{r}
 plotErrors(errR, nominalQ=TRUE)
 ```
-Chaque transition (mutation) possible (A→C, A→G, ...) le taux d'erreur sont indiqués. 
+Chaque mutation possible ( T→G, ...) le taux d'erreur sont indiqués. 
 -points : les taux d'erreur observés pour chaque score de qualité du consensus. 
 -ligne noire : taux d'erreur estimés après convergence de l'algorithme de la machine d'apprentissage. 
 -ligne rouge : taux d'erreur attendus selon la définition nominale du Q-score.
@@ -144,9 +143,16 @@ dim(seqtab)
 ```
 
 # Inspection des longueurs de séquences
+
+
+On va constuire une table avec des variants, on obtient alors des séquences avec une meilleure résolution par rapport table d'OTU
 ```{r}
 table(nchar(getSequences(seqtab)))
 ```
+
+Ce tableau contient les séquences correspondant ainsi à la longueur de la région V4 et V5 de l'ARN 16S amplifiée.
+
+
 # Chimères
 
 Cette fonction permet d'enlever les chimères par méthode consensus 
@@ -155,16 +161,18 @@ Cette fonction permet d'enlever les chimères par méthode consensus
 seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=TRUE, verbose=TRUE)
 dim(seqtab.nochim)
 ```
+
+Parmi les 19426 séquences mises, 17869 chimères ont été retrouvées. 
+
 ## Faire le ratio
 
 Voir le nombre de chimères, c'est le pourcentage de chimères dans notre échantillon
 ```{r}
 1- sum(seqtab.nochim)/sum(seqtab)
 ```
-Ici, on obtient 22% de chimères
+Ici, on obtient 22% de chimères, l'alignement a bien été réalisé.
 
-
-# Construction d'une table 
+# Construction d'une table et évolution des filtres de qualité
 
 ```{r}
 getN <- function(x) sum(getUniques(x))
@@ -186,7 +194,7 @@ On va comparer les séquences de nos échantillons grâce à la base de données
 
 ## Assignation taxonomique n°2 Silva species assignement
 
-On va comparer nos séquences à la base de données Silvaet on assigne une taxonomie à nos données de la Rade de Brest pour pouvoir les étudier. Cette taxonomie va jusqu'à l'espèce. 
+On va comparer nos séquences à la base de données Silva et on assigne une taxonomie à nos données de la Rade de Brest pour pouvoir les étudier. Cette taxonomie va jusqu'à l'espèce. 
 ```{r}
 taxa <- addSpecies(taxa, "~/EcoG2-CC2/silva_species_assignment_v138.fa.gz")
 ```
@@ -196,27 +204,11 @@ rownames(taxa.print) <- NULL
 head(taxa.print)
 ```
 Après cette assignation taxonomique, nous retrouvons majoritairement un grand nombre de bactéries et quelques séquences appartiennent à la branche des Archées. L'assignation va en grande majorité jusqu'au genre et quelque fois jusqu'à l'espèce. Cependant, à partir de l'ordre, des clades ont été crées pour assigner nos séquences de la rade de Brest. 
-La variable taxa.print a reçu toutes les séquences des échantillons avec une taxonomie assignée. 
+La variable taxa.print a reçu toutes les séquences des échantillons avec une taxonomie assignée. Finalement 1557 taxa ont été retrouvés.
 
 ```{r}
 save.image(file="02_Dada2_tutorial_FinalEnv")
 ```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
