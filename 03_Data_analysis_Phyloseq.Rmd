@@ -3,12 +3,16 @@ title: "CC2 : Phyloseq analysis"
 output: 
   github_document:
     toc: true
-    toc depth: 4
+    toc_depth: 4
 ---
 
 ```{r}
 library(ggplot2)
 library(dada2)
+```
+
+
+```{r}
 library(phyloseq)
 library(Biostrings)
 library(DECIPHER)
@@ -22,21 +26,16 @@ load("~/EcoG2-CC2/02_Dada2_tutorial_FinalEnv")
 
 ```{r}
 samples.out <- rownames(seqtab.nochim)
-profondeur <- sapply(strsplit(samples.out, "D"), `[`, 1)
-date <- substr(profondeur,0,1557)
+profondeur <- sapply(strsplit(samples.out, "_"), `[`, 2)
+profondeur <- (sapply(strsplit(samples.out, "_"), `[`, 3))
+date <- substr(profondeur,1,11)
 samdf <- data.frame(Profondeur=profondeur, Date=date)
-samdf$Profondeur[samdf$Date>1557] <- c("Fond","Median","Surface")
-samdf$Date[samdf$Profondeur>1557] <- c("10sept14","11mars15")
+samdf$Profondeur <- c("Fond","Fond","Fond","Fond","Fond", "Median","Median","Surface","Surface","Surface","Surface")
+samdf$Date[samdf$Profondeur==11] <- c("mars","sept")
 rownames(samdf) <- samples.out
 ```
-Avec le code précedant, les échantillons récupérés ont été divisé en fonction de la date : le 10 septembre 14 et le 11 mars 2015, correspondant respectivement à la fin de l'été et la fin de l'hiver. Les échantillons ont aussi été en fonction de la profondeur : "fond" "médian" et "surface". Ce callibrage des échantillons a été mis variable "samdf"
-```{r}
-write.csv(samdf, "samdf.csv")
-```
-Manuellement, nous avons assigné les bonnes dates et profondeurs aux écahntillons. La variable samdf reçoit alors ce qu'on vient de faire manuellement pour avoir les bons résultats. 
-```{r}
-samdf <-read.table("~/EcoG2-CC2/samdf.csv", sep=",", header=TRUE, row.names = 1)
-```
+
+Avec le code précédant, les échantillons récupérés ont été divisé en fonction de la date : le 10 septembre 14 et le 11 mars 2015, correspondant respectivement à la fin de l'été et la fin de l'hiver. Les échantillons ont aussi été en fonction de la profondeur : "fond" "médian" et "surface". Ce callibrage des échantillons a été mis dans la variable "samdf"
 
 # Arbre phylogénétique
 
@@ -57,7 +56,7 @@ fitGTR <- optim.pml(fitGTR, model="GTR", optInv=TRUE, optGamma=TRUE,
 detach("package:phangorn", unload=TRUE)
 ```
 
-Ensuite, dans une nouvelles variable, est assigné grâce à la fonction phyloseq(), les tables d'OTU sans chimères, les échantillons, la table taxonomque.
+Ensuite, dans une nouvelles variable, est assigné grâce à la fonction phyloseq(), les tables d'OTU sans chimères, les échantillons, la table taxonomique.
 ```{r}
 ps <- phyloseq(otu_table(seqtab.nochim, taxa_are_rows=FALSE), 
                sample_data(samdf), 
@@ -73,12 +72,12 @@ Finalement dans la table d'OTU, avec les 11 échnatillons, 1558 taxa on tété t
 plot_richness(ps, x="Date", measures=c("Shannon", "Simpson"), color="Profondeur")
 ```
 
-Les  indices  de  diversité sont  basés  sur  des  formules  plus  complexes  et  illustrant  la  complexité  des  peuplements  : Indice  de  Shannon  Wiener  (H’),  Indice de Simpson ...  Ces indices prends en compte le  nombre  d’espèces et la  distribution des individus au sein de ces espèces. 
+L'alpha diversité représente la diversité microbienne dans le même site effectué selon différents indices. 
 
-l’indice  de  Shannon  est  sensible  aux  variations  d’importance  des  espèces les plus rares. Lorsque l'indice de Shannon est bas, cela signifie que des espèces rares sont retrouvées plus facilement et qu'il y a une espèce plus présente par rapport aux autres, par exemple pour la surface le 10 septembre 2014, on a un indice de Shannon qui est inférieur à 4,5. Pour le médian, un indice entre 4,5 et 4,8 et pour le fond, un indice supérieur à 5,1. Cela signifie donc, il y a plus d'espèces rares de manière croissante en partant du fond vers la surface. En revanche, en mars 2015, l'indice de Shannon est supérieur à 5,1 qu'on se trouve en fond ou à la surface, ceci montre ainsi qu'il y a peu d'espèce rare. Il y a donc une grande différence des espèces en surface selon les deux dates. En effet il y a beaucoup plus d'espèces rares en 2014. L'abondance en fond est donc mieux répartie. 
+L’indice  de  Shannon est sensible aux variations d’importance  des espèces les plus rares. Lorsque l'indice de Shannon est bas, cela signifie que des espèces rares sont retrouvées plus facilement et qu'il y a une espèce plus présente par rapport aux autres, par exemple pour la surface le 10 septembre 2014, on a un indice de Shannon qui est inférieur à 4,5. Pour le médian, un indice entre 4,5 et 4,8 et pour le fond, un indice supérieur à 5,1. Cela signifie donc, il y a plus d'espèces rares de manière croissante en partant du fond vers la surface. En revanche, en mars 2015, l'indice de Shannon est supérieur à 5,1 qu'on se trouve en fond ou à la surface, ceci montre ainsi qu'il y a peu d'espèce rare. Il y a donc une grande différence des espèces en surface selon les deux dates. En effet il y a beaucoup plus d'espèces rares en 2014. L'abondance en fond est donc mieux répartie. 
 
-l’indice de Simpson est sensibles aux variations d’importance des espèces les plus abondantes. Lorsque l'indice de Simpson tends vers 0, cela signifie que les échantillons représentent une grande diversité, contrairement à 1 qui représente une faible diversité. Pour les échantillons de 2014, les surfaces sont compris entre 0,96 et 0,95, les médians entre 0,97 et 0,98 et enfin les fonds sont supérieurs à 0,98. Les échantillons de la surface présentent une forte diversité par rapport à ceux du fond, cependant, il faut prendre en compte que l'indice de Simppson, que tout les échantillons tendent vers 1 et ne sont donc pas significatifs. Il faudrait, pour cela effectuer des tests statiitiques. 
-Pour mars 2015, tous les échntillons que ce soit en fond ou en surface, les indices sont supérieurs à 0,98, ils présentent donc une plus faible diversité. On voit bien qu'il y a une différence au niveau de la diversité aux différents moments de l'année. Les résultats avec l'indice de Shannon concordent avec ceux de l'indice de Simpson. 
+L’indice de Simpson est sensibles aux variations d’importance des espèces les plus abondantes. Lorsque l'indice de Simpson tend vers 0, cela signifie que les échantillons représentent une grande diversité, contrairement à 1 qui représente une faible diversité. Pour les échantillons de 2014, les surfaces sont compris entre 0,96 et 0,95, les médians entre 0,97 et 0,98 et enfin les fonds sont supérieurs à 0,98. Les échantillons de la surface présentent une forte diversité par rapport à ceux du fond, cependant, il faut prendre en compte que l'indice de Simpson, que tout les échantillons tendent vers 1 et ne sont donc pas significatifs. Il faudrait, pour cela effectuer des tests statistiques. 
+Pour mars 2015, tous les échantillons que ce soit au fond ou en surface, les indices sont supérieurs à 0,98, ils présentent donc une plus faible diversité. On voit bien qu'il y a une différence au niveau de la diversité aux différents moments de l'année. Les résultats avec l'indice de Shannon concordent avec ceux de l'indice de Simpson. 
 
 ## Filtrage de la taxonomie
 ### Indiquer les rangs dans l'ensemble des données
@@ -91,7 +90,9 @@ rank_names(taxa.print)
 ### Créer un tableau, nombre de caractéristiques pour chaque phyla
 
 La fonction tax_table : permet de construire et d’accéder à une table de nom taxonomique de l’objet ps
-Avec cette table, nous obenons un tableau de contingence des différents phyla. Le résultat indique le nombre de séquences appartenant au phylum désigné. Les NA, c'est à dire ceux non assigné, sont des artefacts dans le jeu de données, ils vont être supprimés. Les phyla les plus présents sont les Proteobacteria et Bacteroidota.
+
+Avec cette table, nous obtenons un tableau de contingence des différents phyla. Le résultat indique le nombre de séquences appartenant au phylum désigné. Les NA, c'est-à-dire ceux non assignés, sont des artefacts dans le jeu de données, ils vont être supprimés. Les phyla les plus présents sont les Proteobacteria et Bacteroidota.
+
 
 ```{r}
 table(tax_table(ps)[, "Phylum"], exclude = NULL)
@@ -101,8 +102,7 @@ table(tax_table(ps)[, "Phylum"], exclude = NULL)
 ```{r}
 ps <- subset_taxa(ps, !is.na(Phylum) & !Phylum %in% c("", "uncharacterized"))
 ```
-Toutes les séquences où le phylum n'a pas pu être caractérisé, vont être éliminés. 
-
+Toutes les séquences où le phylum n'a pas pu être caractérisé vont être éliminés. 
 
 Les futures étapes vont permettre de définir la prévalence de chaques caractéristiques
 
@@ -148,9 +148,7 @@ ggplot(prevdf1, aes(TotalAbundance, Prevalence / nsamples(ps),color=Phylum)) +
   facet_wrap(~Phylum) + theme(legend.position="none")
 ```
 
-Les tableaux ci-dessus permettre de montrer la prévalence de chacun des phyla selon l'abondance total. Cela correspond bien aux résultats toruvé au dessus, les protéobacteries, les Bacteroidota sont fortement présentes dans la population. Les cyanobactéries et les marinimicrobia sont présentes en grande quantité également. Le problème avec la prévalence, c'est que les échantillons sont mélangés et ne sont pas classés en fonction de la date ou bien de la profondeur. 
-
-
+Les tableaux ci-dessus permettre de montrer la prévalence de chacun des phyla selon l'abondance total. Cela correspond bien aux résultats trouvés au dessus, les protéobacteries, les Bacteroidota sont fortement présentes dans la population. Les cyanobactéries et les marinimicrobia sont présentes en grande quantité également. Le problème avec la prévalence, c'est que les échantillons sont mélangés et ne sont pas classés en fonction de la date ou bien de la profondeur. 
 
 # Construction des arbres phylogénétiques
 
@@ -204,7 +202,6 @@ gridExtra::grid.arrange(nrow = 1, p2tree, p3tree, p4tree)
 
 La construction des arbres montre la variété des OTU retrouvés dans la rade de Brest et de leur distance phylogénétique en eux. 
 
-
 # Abondance 
 
 ## Selon la profondeur 
@@ -238,45 +235,16 @@ plotAfter_P = plot_abundance_P(ps3ra_P,"")
 gridExtra::grid.arrange(nrow = 1, plotBefore_P, plotAfter_P)
 ```
 
+Les premiers graphiques représentent l'abondance initale et les seconds, représentent l'abondance relative selon la profondeur. Deux classes ont découverts : les Phycisphaerales et les Pirellulales. 
 
+Les deux classes sont présentes dans les même proportions selon les profondeurs que ce soit avec l'abondance initiale ou l'abondance relative. Par contre, les Phycisphaerales ne sont présents que dans le fond, elles sont très peu présentes dans les autres niveaux de profondeur. Les Pirellulales sont abondantes dans le fond et en surface, mais assez peu au niveau médian. 
 
 ```{r}
 psOrd_P = subset_taxa(ps3ra_P, Order == "Pirellulales")
 plot_abundance_P(psOrd_P, Facet = "Genus", Color = NULL)
 ```
-## Avec la date 
 
-```{r}
-plot_abundance_D = function(physeq,title = "",
-                          Facet = "Order", Color = "Phylum"){
-  # Arbitrary subset, based on Phylum, for plotting
-  p1f = subset_taxa(physeq, Phylum %in% c("Planctomycetota"))
-  mphyseq = psmelt(p1f)
-  mphyseq <- subset(mphyseq, Abundance > 0)
-  ggplot(data = mphyseq, mapping = aes_string(x = "Date",y = "Abundance",
-                              color = Color, fill = Color)) +
-    geom_violin(fill = NA) +
-    geom_point(size = 1, alpha = 0.3,
-               position = position_jitter(width = 0.3)) +
-    facet_wrap(facets = Facet) + scale_y_log10()+
-    theme(legend.position="none")
-}
-```
-```{r}
-ps3ra_D = transform_sample_counts(ps3, function(x){x / sum(x)})
-```
-
-```{r}
-plotBefore_D = plot_abundance_D(ps3,"")
-plotAfter_D = plot_abundance_D(ps3ra_D,"")
-```
-```{r}
-gridExtra::grid.arrange(nrow = 1, plotBefore_D, plotAfter_D)
-```
-```{r}
-psOrd_D = subset_taxa(ps3ra_D, Order == "Pirellulales")
-plot_abundance_D(psOrd_D, Facet = "Genus", Color = NULL)
-```
+Chez les Pirellulales, trois ordres ont été retrouvés : les Blastopirellula, les Rhodopirellula, les Rubripirellula. Le premier ordre est très abondantes dans le fond et à la surface. Le second ordre est présent significativement dans le fond mais reste inférieur à l'abondance du troisième ordre cité dans le fond. Les Rhodopirellula et les Rubripirellula ne sont présentes significativement dans le fond. 
 
 # Ordination  
 
@@ -287,19 +255,18 @@ ord.pcoa.bray <- ordinate(ps.prop, method="PCoA", distance="bray")
 ```
 
 ## Visualisation de l'ordination
-On colore la légende quand "when"
 
 ```{r}
 plot_ordination(ps.prop, ord.pcoa.bray, color="Profondeur", shape = "Date", title="Bray PCoA")
 ```
 
-
-L'interprétation d'un tracé de PCoA est simple : les objets ordonnés plus près les uns des autres sont plus similaires que ceux ordonnés plus loin. La (dés)similitude est définie par la mesure utilisée dans la construction de la matrice de (dés)similitude utilisée en entrée. Les valeurs négatives correspondent à des nombres imaginaires sont générés lors de l'analyse et empêchent la représentation euclidiennes.
+L'interprétation d'un tracé de PCoA est simple : les objets ordonnés plus près les uns des autres sont plus similaires que ceux ordonnés plus loin. La (dés) similitude est définie par la mesure utilisée dans la construction de la matrice de (dés)similitude utilisée en entrée. Les valeurs négatives correspondent à des nombres imaginaires sont générés lors de l'analyse et empêchent la représentation euclidiennes.
 
 Analyse :
-Pour mars 2015 (triangles), les points représentants les échantillons provenants du fond et de la surface sont très proches. Cela signifie que lors de l'échantillonage, la diversité des OTU était quasiment la même. En revanche, ce n'est pas le cas pour septembre 2014, les points représentants les différentes profondeurs sont très élooignés les uns les autres traduisant une population diversifiée à chaque niveau de profondeur. Les échantillons du médian et de la surface sont de toutde même assez proches contrairement aux points représentant les échantillons provenant du fond qui est totalement éloigné des autres points. Cela traduit donc un désaccord au niveau des OTU retrouvés. 
-En comparant les points entre les dates, pour la surface, les OTU semblent très éloignés entre eux. Cela montre ainsi que selon la saison, la diversité change totalement. Nous constatons cette importante différence pour les échntillons provenant du fond. 
 
+En mars 2015 (triangles), les points représentants les échantillons provenants du fond et de la surface sont très proches. Cela signifie que lors de l'échantillonnage, la diversité des OTU était quasiment la même. En revanche, ce n'est pas le cas pour septembre 2014, les points, représentants les différentes profondeurs sont très éloignés les uns les autres traduisant une population diversifiée à chaque niveau de profondeur. Les échantillons du médian et de la surface sont de tout de même assez proches contrairement aux points représentant les échantillons provenant du fond qui est totalement éloigné des autres points. Cela traduit donc un désaccord au niveau des OTU retrouvés. 
+
+En comparant les points entre les dates, pour la surface, les OTU semblent très éloignés entre eux. Cela montre ainsi que selon la saison, la diversité change totalement. Nous constatons cette importante différence pour les échantillons provenant du fond. 
 
 # Bar plot
 ## Au niveau du Phylum 
@@ -311,11 +278,12 @@ ps.top20 <- prune_taxa(top20, ps.top20)
 plot_bar(ps.top20, x="Date", fill="Phylum", title="Diversité des Phyla les plus abondants") + facet_wrap(~Profondeur, scales="free_x")
 ```
 
-Le phylum des Cyanobactéries se retouve principalement en surface et en zone médiane, cela s'explique par le fait que ces bactéries, pour leur croissance, ont besoin de lumière, ce qui est cohérent. En septembre, il est normal de retrouver plus de cyanobactéries comparé au mois mars puisque l'été synonyme de soleil est passé. Ces bactéries ont plus eu le temps de se développer.
-La majorité des communautés est représenté par le phylum de Proteobacteria. Dans la table taxa.print, ces Protéobactéries sont subdivisé en deux groupes retrouvés : les alphaprotéobactéries et les gammaprotéobactéries. Ces dernières peuvent se retrouver dans les intestins mais aussi dans l'eau de pluie. Le temps breton étant propice aux intempéries pluvieuses, il serait donc normal de retrouver ce type de bactéries. 
+Le phylum des Cyanobactéries se retrouve principalement en surface et en zone médiane, cela s'explique par le fait que ces bactéries, pour leur croissance, ont besoin de lumière, ce qui est cohérent. En septembre, il est normal de retrouver plus de cyanobactéries comparé au mois mars puisque l'été synonyme de soleil est passé. Ces bactéries ont plus eu le temps de se développer.
 
-L'abondance des commautés retrouvée en mars 2015 que ce soit au fond ou en surface, garde la même tendance et les même proportion.C'est cohérent avec la PCoA effectuée précédemment. 
-Concernant les échantillonnages de septembtre 2014, dans le fond, parmis les espèces les plus abondantes le phylum Bacteroidota est présent en plus forte quantité. Pour le niveau médian et la surface, le niveau d'abondance est sensiblement le même. C'est cependant au niveau des phyla Cyanobacteria, Marinimicrobia qu'une variation est visible. Ici encore, ceci correspond aux résultats étudiés lors de la PCoA.
+La majorité des communautés est représentée par le phylum de Proteobacteria. Dans la table taxa.print, ces Protéobactéries sont subdivisées en deux groupes retrouvés : les alphaprotéobactéries et les gammaprotéobactéries. Ces dernières peuvent se retrouver dans les intestins, mais aussi dans l'eau de pluie. Le temps breton étant propice aux intempéries pluvieuses, il serait donc normal de retrouver ce type de bactéries. 
+
+L'abondance des communautés retrouvée en mars 2015 que ce soit au fond ou en surface, garde la même tendance et les mêmes proportions.C'est cohérent avec la PCoA effectuée précédemment. 
+Concernant les échantillonnages de septembre 2014, dans le fond, parmi les espèces les plus abondantes le phylum Bacteroidota est présent en plus forte quantité. Pour le niveau médian et la surface, le niveau d'abondance est sensiblement le même. C'est cependant au niveau des phyla Cyanobacteria, Marinimicrobia qu'une variation est visible. Ici encore, ceci correspond aux résultats étudiés lors de la PCoA.
 
 
 ```{r}
@@ -332,8 +300,9 @@ ps.top20 <- prune_taxa(top20, ps.top20)
 plot_bar(ps.top20, x="Date", fill="Phylum", title="Observation des Phyla pour observer les Thermoplasmatota") + facet_wrap(~Profondeur, scales="free_x")
 ```
 
-Les deux derniers bar plot servent à indiquer à quelle profondeur se situe les phyla des archées Crenarchaeota et Thermoplasmatota. NOus voyons qu'elles sont plus présentes dans le fond pour les deux années, assez peu au niveau médian et sont présentes en plus grande quantité que le médian mais reste inférierus à celles du fond. De plus, en surface les archées ne sont présentes qu'en mars 2015. 
-Pou r l'années 2014, le fond a présenté une plus grande quantité de phyla d'archée contrairement à mars 2015, qui peut être expliqué par le fait qu'une partie de cette population se retrouve en surface. 
+Les deux derniers bar plot servent à indiquer à quelle profondeur se situe les phyla des archées Crenarchaeota et Thermoplasmatota. Nous voyons qu'elles sont plus présentes dans le fond pour les deux années, assez peu au niveau médian et sont présentes en plus grande quantité que le médian, mais reste inférieures à celles du fond. De plus, en surface, les archées ne sont présentes qu'en mars 2015. 
+
+Pour l'année 2014, le fond a présenté une plus grande quantité de phyla d'archée contrairement à mars 2015, qui peut être expliqué par le fait qu'une partie de cette population se retrouve en surface. 
 
 ```{r}
 top20 <- names(sort(taxa_sums(ps), decreasing=TRUE))[1:20]
@@ -342,15 +311,13 @@ ps.top20 <- prune_taxa(top20, ps.top20)
 plot_bar(ps.top20, x="Date", fill="Genus") + facet_wrap(~Profondeur, scales="free_x")
 ```
 
-Pour le fond de la rade de Brest pour les deux dates, on retrouve en plus grande proportion le genre de clade Ia (vert), puis en plus ptit quantité les SUP05 cluster (violet) et apres les NS5 marine group (bleu). Sachant qu'il y a une grande propotion dans les deux cas de NA. 
-
 Pour le médian, on trouve en majorité le cladIa , puis les Synechoccocus CC9902 (rose) avec les Ascidiceihabitans (marron) dans des proportions équivalentes. 
+Pour la surface, les Synechoccocus CC9902 dominent en septembre alors que c'est le clade IA en mars. Le deuxième genre majoritaire en septembre est le clade IA, alors que pour mars, c'est des SUP05 cluster. Sachant qu'il y a une grande proportion de non caractériser. Pour mars 2015, les Ascidiaceihabitans et les Synechoccocus CC9902 ne sont plus présents. 
+Pour le fond de la rade de Brest pour les deux dates, on retrouve en plus grande proportion le genre de clade Ia (vert), puis en plus petite quantité les SUP05 cluster (violet) et après les NS5 marine group (bleu). Sachant qu'il y a une grande proportion dans les deux cas de NA. 
 
-Pour la surface les Synechoccocus CC9902 domine en septembre alors que c'est le clade IA en mars. Le deuxième genre majoritaire en septembre est le clade IA, alors que pour mars c'est des SUP05 cluster. Sachant qu'il y a une grande propotion de non caractérisé. Pour mars 2015, les A scidiaceihabitans et les Synechoccocus CC9902 ne sont plus présents. 
+En ce qui concerne le fond, hormis le fait qu'il n'y ait plus la présence d'Amylibacter en 2015, les genres retrouvés sont les mêmes à des abondances plus faibles, mais restent proportionnelles.
+Globalement, on a un genre qui se trouve dans n'importe qu'elle profondeur qu'elle que soit la date, c'est le cladeIa. La seule différente entre les dates que l'on peut noter pour les genres est dans la surface. En effet ce sont les Synechoccocus CC9902 qui domine en septembre. 
 
-En ce qui concerne le fond, hormis le fait qu'il n'y ait plus la présence d'Amylibacter en 2015, les genres retrouvés sont les même à des abondances plus faibles mais restent proportionnelles.
-
-Globalement on a un genre qui se trouve dans n'importe qu'elle profondeur qu'elle que soit la date c'est le cladeIa. La seule différente entre les date que l'on peut noter pour les genres est dans la surface. En effet on les Synechoccocus CC9902 qui domine en septembre. 
 
 
 # Analyse en réseau 
@@ -385,35 +352,19 @@ ggplot(net_graph, aes(x = x, y = y, xend = xend, yend = yend), layout = "fruchte
   guides(col = guide_legend(override.aes = list(size = .5)))
 ```
 
-Les échantillons prélevé en mar 2015 (bleu) sont reliés entre eux que ce soit en surface ou dans le fonds. Les communautés sont donc en lien. Les échantillons en septembre 2014 sont divisés en deux groupes. On a ceux retrouve que en fond et donc des communautés particulières, et apres les médian et surface ont un lien. Cette analyse en réseau correspond bien aux résultats observés avec l'ordination de la PCoA. 
+Cette analyse en réseau permet de voir la liaison entre les échantillons. Les points bleus représentant mars 2015, sont liés entre eux entre le fond et la surface. Les communautés microbiennes sont donc proches phylogénétiquement. Contrairement aux échantillons prélevés en septembre 2014, où deux communautés sont bien distinctes, séparés donc en deux groupes éloignés. Les échantillons provenant du fond et de la surface présente tout de même un lien. En revanche, le fond, lors de cette année présentes des communautés particulières, totalement différentes des deux autres profondeurs. 
 
-Finalement, nous avons pu observé que les communautés microbiennes évoluaient en fonction de la profondeur et des dates que l'on peut expliquer avec des suppositions. 
-Nous pouvons émettre plusieurs hypothèses possibles suites à ces variations : 
+L'analyse correspond aux résultats observés avec l'ordination de la PCoA. 
 
-- Au début de l'année 2014, de nombreuses tempêtes ont fait rage au large de la Bretagne, il y a pu avoir une repercussion au nivaau de la diversité des OTU échantilonnées en septembre. 
 
+Finalement, nous avons pu observer que les communautés microbiennes évoluaient en fonction de la profondeur et des dates que l'on peut expliquer avec des suppositions. 
+
+Nous pouvons émettre plusieurs hypothèses possibles suite à ces variations : 
+
+- Au début de l'année 2014, de nombreuses tempêtes ont fait rage au large de la Bretagne, il y a pu avoir une répercussion au niveau de la diversité des OTU échantillonnées en septembre. 
 - Le Gulf Stream passe près de la Bretagne, ce courant peu apporter de nouvelles espèces provenant du Nord. 
-
 - Avec le réchauffement climatique, la température de la mer, notamment au niveau de la surface peu modifier le milieu et donc avoir un changement au niveau des communautés bactériennes. 
-
-- La rade de Brest possède une grande activité maritime : commerciale et militaire. Il est possible qu'avec ces échanges, les bateaux iportent ou exportent diverses communautés bactériennes. 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+- La rade de Brest possède une grande activité maritime : commerciale et militaire. Il est possible qu'avec ces échanges, les bateaux importent ou exportent diverses communautés bactériennes. 
 
 
 
